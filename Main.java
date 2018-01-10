@@ -8,7 +8,7 @@ public class Main {
 			Launchpad l = new Launchpad(lowLevel);
 			l.open(Utils.findLaunchpad(lowLevel));
 			MyListener listener = new MyListener(l);
-			listener.start();
+			new Thread(() -> listener.start()).start();
 			
 			System.out.println("Connection is ready. Press enter to stop.");
 			System.console().readLine();

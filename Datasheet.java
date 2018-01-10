@@ -25,15 +25,15 @@ public class Datasheet {
 		 * Converts the tick to the beat, using the ticksPerBeat
 		 * field of the parent Datasheet object.
 		 */
-		public float getBeat() {
-			return tick / (float) ticksPerBeat;
+		public double getBeat() {
+			return tick / (double) ticksPerBeat;
 		}
 		
 		/**
 		 * Converts the tick to the second.
 		 */
-		public float getSecond() {
-			return getBeat() / tempo;
+		public double getSecond() {
+			return getBeat() * 60d / tempo;
 		}
 		
 		/**
@@ -46,11 +46,15 @@ public class Datasheet {
 		 */
 		public int getNoteType(List<Float> noteTypes) {
 			for (int i = 0; i < noteTypes.size(); i++) {
-				if ((getBeat() % noteTypes.get(i)) < 1e-5f) {
+				if ((getBeat() % noteTypes.get(i)) < 1e-5d) {
 					return i;
 				}
 			}
 			return -1;
+		}
+		
+		public String toString() {
+			return "(" + x + "|" + y + ") at " + tick;
 		}
 	}
 	
