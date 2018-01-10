@@ -56,9 +56,15 @@ public class Datasheet {
 	
 	private static class Parser {
 		static final String KEY_VALUE_SEPARATOR = ": ";
+		/**
+		 * These keys can contain any character
+		 * combination except the KEY_VALUE_SEPARATOR.
+		 */
 		static final String
 			NAME_KEY = "Name",
-			TEMPO_KEY = "Tempo";
+			TEMPO_KEY = "Tempo",
+			TICKS_PER_BEAT_KEY = "TicksPerBeat",
+			NOTES_KEY = "Notes";
 		
 		private File file;
 		private BufferedReader reader;
@@ -76,7 +82,12 @@ public class Datasheet {
 			String line;
 			currentLine = 0;
 			while ((line = reader.readLine()) != null) {
-				processLine(line);
+				try {
+					processLine(line);
+				} catch (Throwable t) {
+					warn("An exception occured: ");
+					t.printStackTrace();
+				}
 				currentLine++;
 			}
 			
@@ -84,7 +95,7 @@ public class Datasheet {
 		}
 		
 		private void warn(String msg) {
-			System.err.println("Warning ("
+			System.err.println("Warning while parsing ("
 					+ file.getName()
 					+ ":"
 					+ (currentLine + 1)
@@ -93,6 +104,11 @@ public class Datasheet {
 		}
 		
 		private void processLine(String line) {
+			// If line is empty or comment, skip
+			if (line.matches(" *") || line.charAt(0) == '#') {
+				return;
+			}
+			
 			int separatorIndex = line.indexOf(KEY_VALUE_SEPARATOR);
 			if (separatorIndex == -1) {
 				warn("Separator \"" + KEY_VALUE_SEPARATOR + "\" not found.");
@@ -106,7 +122,9 @@ public class Datasheet {
 			switch (key) {
 				case NAME_KEY: parseName(value); break;
 				case TEMPO_KEY: parseTempo(value); break;
-				default: warn("Unrecognized key: \"" + key + "\"."); break;
+				case TICKS_PER_BEAT_KEY: parseTicksPerBeat(value); break;
+				case NOTES_KEY: parseNotes(value); break;
+				default: warn("Unrecognized key: \"" + key + "\"."); return;
 			}
 		}
 		
@@ -116,6 +134,36 @@ public class Datasheet {
 		
 		private void parseTempo(String string) {
 			sheet.setTempo(Float.parseFloat(string));
+		}
+		
+		private void parseTicksPerBeat(String string) {
+			sheet.setTicksPerBeat(Integer.parseInt(string));
+		}
+		
+		private void parseNotes(String string) {
+			String[] noteStrings = string.split(", ");
+			for (String noteString : noteStrings) {
+				parseNote(noteString);
+			}
+		}
+		
+		private void parseNote(String string) {
+			String[] numberStrings = string.split(" ");
+			if (numberStrings.length > 3) {
+				warn("Note has more than the expected three attributes.");
+			} else if (numberStrings.length < 3) {
+				warn("Note has not the required three attributes. Skipping.");
+				return;
+			}
+			
+			try {
+				int x = Integer.parseInt(numberStrings[0]);
+				int y = Integer.parseInt(numberStrings[1]);
+				int tick = Integer.parseInt(numberStrings[2]);
+				sheet.addNote(x, y, tick);
+			} catch (NumberFormatException e) {
+				warn("Not a valid number: " + e.getMessage());
+			}
 		}
 	}
 	
@@ -134,6 +182,12 @@ public class Datasheet {
 		public void write() throws IOException {
 			writeKeyValuePair(Parser.NAME_KEY, sheet.getName());
 			writeKeyValuePair(Parser.TEMPO_KEY, String.valueOf(sheet.getTempo()));
+			writeKeyValuePair(Parser.TICKS_PER_BEAT_KEY,
+					String.valueOf(sheet.getTicksPerBeat()));
+			writer.println();
+			for (Note note : sheet.getNotes()) {
+				writeKeyValuePair(Parser.NOTES_KEY, toShtFormatString(note));
+			}
 			writer.close();
 		}
 		
@@ -142,6 +196,25 @@ public class Datasheet {
 			writer.print(Parser.KEY_VALUE_SEPARATOR);
 			writer.print(value);
 			writer.println();
+		}
+		
+		public static String toShtFormatString(Note... notes) {
+			StringBuilder builder = new StringBuilder();
+			
+			for (int i = 0; i < notes.length; i++) {
+				Note note = notes[i];
+				builder.append(note.x);
+				builder.append(" ");
+				builder.append(note.y);
+				builder.append(" ");
+				builder.append(note.tick);
+				
+				if (i + 1 != notes.length) {
+					builder.append(", ");
+				}
+			}
+			
+			return builder.toString();
 		}
 	}
 	
@@ -167,11 +240,16 @@ public class Datasheet {
 	public void setName(String name) {this.name = name;}
 	public float getTempo() {return tempo;}
 	public void setTempo(float tempo) {this.tempo = tempo;}
+	public int getTicksPerBeat() {return ticksPerBeat;}
+	public void setTicksPerBeat(int ticksPerBeat) {
+		this.ticksPerBeat = ticksPerBeat;
+	}
 	public List<Note> getNotes() {return notes;}
 	public void addNote(Note note) {notes.add(note);}
+	public void addNote(int x, int y, int tick) {addNote(new Note(x, y, tick));}
 	
 	/**
-	 * Sorts the notes in the order that they appear.
+	 * Sorts the notes in the order that they are shown.
 	 */
 	public void sortNotes() {
 		Collections.sort(notes, new Comparator<Note>() {

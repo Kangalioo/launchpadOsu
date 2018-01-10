@@ -3,11 +3,6 @@ import java.io.File;
 
 public class Main {
 	public static void main(String[] args) throws Exception {
-		Datasheet sheet = Datasheet.fromFile(new File("sheet.sht"));
-		sheet.writeToFile(new File("target.sht"));
-		
-		
-		if(true)return;
 		try {
 			LaunchpadS lowLevel = new LaunchpadS();
 			Launchpad l = new Launchpad(lowLevel);
